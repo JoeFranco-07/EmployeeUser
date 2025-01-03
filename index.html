@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Management</title>
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            margin: 50px;
+            background-color: #f0f4f8;
+            color: #333;
+        }
+        h1, h2 {
+            text-align: center;
+            color: #0056b3;
+        }
+        form, .modal-content {
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            margin: 20px auto;
+            max-width: 500px;
+        }
+        label {
+            display: block;
+            margin: 10px 0 5px;
+            font-weight: 500;
+        }
+        input, select, button {
+            padding: 12px;
+            margin-bottom: 20px;
+            width: 90%;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        button {
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 30px;
+            background-color: #fff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        th, td {
+            padding: 15px;
+            border: 1px solid #ddd;
+            text-align: center;
+        }
+        th {
+            background-color: #007bff;
+            color: white;
+        }
+        #search {
+            width: 100%;
+            max-width: 500px;
+            padding: 12px;
+            margin: 20px auto;
+            display: block;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            width: 400px;
+            position: relative;
+        }
+        .close {
+            position: absolute;
+            top: 10px;
+            right: 20px;
+            font-size: 28px;
+            color: #0056b3;
+            cursor: pointer;
+        }
+        .close:hover {
+            color: #333;
+        }
+        #deleteUser {
+            background-color: #dc3545;
+        }
+        #deleteUser:hover {
+            background-color: #c82333;
+        }
+    </style>
+</head>
+<body>
+    <h1>User Management</h1>
+    
+    <form id="userForm">
+        <label for="name">Name</label>
+        <input type="text" id="name" name="name" required>
+        
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" required>
+        
+        <label for="age">Age</label>
+        <input type="number" id="age" name="age" required>
+        
+        <label for="gender">Gender</label>
+        <select id="gender" name="gender" required>
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+        </select>
+        
+        <button type="submit">Add User</button>
+    </form>
+
+    <h2>Users List</h2>
+    
+    <input type="text" id="search" placeholder="Search by name...">
+
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Age</th>
+                <th>Gender</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody id="userTableBody">
+        </tbody>
+    </table>
+
+    <div id="editModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <span class="close" id="closeModal">&times;</span>
+            <h2>Edit User</h2>
+            <label for="editName">Name</label>
+            <input type="text" id="editName" required>
+            <label for="editAge">Age</label>
+            <input type="number" id="editAge" required>
+            <label for="editGender">Gender</label>
+            <select id="editGender" required>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+            </select>
+            <button id="updateUser">Update</button>
+            <button id="deleteUser">Delete</button>
+        </div>
+    </div>
+    <script>
+        let currentUserId = null;
+
+        document.getElementById('userForm').onsubmit = async function(event) {
+            event.preventDefault();
+            const name = document.getElementById('name').value;
+            const password = document.getElementById('password').value;
+            const age = document.getElementById('age').value;
+            const gender = document.getElementById('gender').value;
+
+            const response = await fetch('/api/users', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ name, password, age, gender })
+            });
+
+            const result = await response.json();
+            if (result.success) {
+                alert('User added successfully!');
+                fetchUsers();
+                document.getElementById('userForm').reset();
+            } else {
+                alert(result.message || 'Failed to add user.');
+            }
+        };
+
+        async function fetchUsers() {
+            const response = await fetch('/api/users');
+            const data = await response.json();
+            const tbody = document.getElementById('userTableBody');
+            tbody.innerHTML = '';
+
+            if (data.success && data.data.length > 0) {
+                data.data.forEach(user => {
+                    const row = `<tr>
+                        <td>${user.name}</td>
+                        <td>${user.age}</td>
+                        <td>${user.gender}</td>
+                        <td><button onclick="openModal('${user._id}', '${user.name}', '${user.age}', '${user.gender}')">Edit</button></td>
+                    </tr>`;
+                    tbody.innerHTML += row;
+                });
+            } else {
+                tbody.innerHTML = '<tr><td colspan="4">No users found.</td></tr>';
+            }
+        }
+
+        function openModal(id, name, age, gender) {
+            currentUserId = id;
+            document.getElementById('editName').value = name;
+            document.getElementById('editAge').value = age;
+            document.getElementById('editGender').value = gender;
+            document.getElementById('editModal').style.display = 'flex';
+        }
+
+        document.getElementById('closeModal').onclick = function() {
+            document.getElementById('editModal').style.display = 'none';
+        };
+
+        document.getElementById('updateUser').onclick = async function() {
+            const updatedUser = {
+                name: document.getElementById('editName').value,
+                age: document.getElementById('editAge').value,
+                gender: document.getElementById('editGender').value
+            };
+            await fetch(`/api/users/${currentUserId}`, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(updatedUser)
+            });
+            fetchUsers();
+            document.getElementById('editModal').style.display = 'none';
+        };
+
+        document.getElementById('deleteUser').onclick = async function() {
+            await fetch(`/api/users/${currentUserId}`, {
+                method: 'DELETE'
+            });
+            fetchUsers();
+            document.getElementById('editModal').style.display = 'none';
+        };
+    document.getElementById('search').onkeyup = function() {
+            const filter = this.value.toLowerCase();
+            const rows = document.querySelectorAll('#userTableBody tr');
+
+            rows.forEach(row => {
+                const nameCell = row.querySelector('td:first-child');
+                const name = nameCell.textContent.toLowerCase();
+                row.style.display = name.includes(filter) ? '' : 'none';
+            });
+        }
+        fetchUsers();
+    </script>
+</body>
+</html>
